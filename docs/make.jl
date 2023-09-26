@@ -5,12 +5,12 @@ DocMeta.setdocmeta!(ACEluxpots, :DocTestSetup, :(using ACEluxpots); recursive=tr
 
 makedocs(;
     modules=[ACEluxpots],
-    authors="Christoph Ortner <christohortner@gmail.com> and contributors",
-    repo="https://github.com/ortner/ACEluxpots.jl/blob/{commit}{path}#{line}",
+    authors="Christoph Ortner <christophortner@gmail.com> and contributors",
+    repo="https://github.com/ACEsuit/ACEluxpots.jl/blob/{commit}{path}#{line}",
     sitename="ACEluxpots.jl",
     format=Documenter.HTML(;
         prettyurls=get(ENV, "CI", "false") == "true",
-        canonical="https://ortner.github.io/ACEluxpots.jl",
+        canonical="https://ACEsuit.github.io/ACEluxpots.jl",
         edit_link="main",
         assets=String[],
     ),
@@ -20,6 +20,6 @@ makedocs(;
 )
 
 deploydocs(;
-    repo="github.com/ortner/ACEluxpots.jl",
+    repo="github.com/ACEsuit/ACEluxpots.jl",
     devbranch="main",
 )

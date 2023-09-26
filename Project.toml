@@ -1,6 +1,6 @@
 name = "ACEluxpots"
 uuid = "2268c534-3cf0-4ad0-a97c-5c4010a21122"
-authors = ["Christoph Ortner <christohortner@gmail.com> and contributors"]
+authors = ["Christoph Ortner <christophortner@gmail.com> and contributors"]
 version = "0.0.1"
 
 [compat]

@@ -4,7 +4,7 @@ CurrentModule = ACEluxpots
 
 # ACEluxpots
 
-Documentation for [ACEluxpots](https://github.com/ortner/ACEluxpots.jl).
+Documentation for [ACEluxpots](https://github.com/ACEsuit/ACEluxpots.jl).
 
 ```@index
 ```
