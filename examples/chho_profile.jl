@@ -7,7 +7,7 @@ using Optimisers, ReverseDiff
 # dataset
 using ASE, JuLIP
 function gen_dat()
-   eam = JuLIP.Potentials.EAM("/zfs/users/jerryho528/jerryho528/julia_ws/EquivariantModels.jl/examples/potential/w_eam4.fs")
+   eam = JuLIP.Potentials.EAM("./potential/w_eam4.fs")
    at = rattle!(bulk(:W, cubic=true) * 2, 0.1)
    set_data!(at, "energy", energy(eam, at))
    set_data!(at, "forces", forces(eam, at))
@@ -102,7 +102,7 @@ end
 
 
 E, F, V = Pot.lux_efv(at, calc, ps, st)
-eam = JuLIP.Potentials.EAM("/zfs/users/jerryho528/jerryho528/julia_ws/EquivariantModels.jl/examples/potential/w_eam4.fs")
+eam = JuLIP.Potentials.EAM("./potential/w_eam4.fs")
 Eref = JuLIP.energy(eam, at)
 Fref = JuLIP.forces(eam, at)
 Vref = JuLIP.virial(eam, at)

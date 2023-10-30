@@ -1,64 +1,82 @@
-using EquivariantModels, Lux, StaticArrays, Random, LinearAlgebra, Zygote, Polynomials4ML
-using Polynomials4ML: LinearLayer, RYlmBasis, lux 
+using EquivariantModels, Lux, StaticArrays, Random, LinearAlgebra, Zygote 
+using Polynomials4ML: LinearLayer, RYlmBasis, lux, legendre_basis 
 using EquivariantModels: degord2spec, specnlm2spec1p, xx2AA, simple_radial_basis
-using JuLIP, Combinatorics, Test
-using ACEbase.Testing: println_slim, print_tf, fdtest
-using Optimisers: destructure
-using Printf
-
-L = 0
+using JuLIP, Combinatorics, ACEbase
 
 include("staticprod.jl")
 
-rng = Random.MersenneTwister()
-
-
-
 # === overiding useful function as usual ===
-import ChainRulesCore: ProjectTo
-using ChainRulesCore
-using SparseArrays
+   import ChainRulesCore: ProjectTo
+   using ChainRulesCore
+   using SparseArrays
+   
+   function (project::ProjectTo{SparseMatrixCSC})(dx::AbstractArray)
+      dy = if axes(dx) == project.axes
+          dx
+      else
+          if size(dx) != (length(project.axes[1]), length(project.axes[2]))
+              throw(_projection_mismatch(project.axes, size(dx)))
+          end
+          reshape(dx, project.axes)
+      end
+      T = promote_type(ChainRulesCore.project_type(project.element), eltype(dx))
+      nzval = Vector{T}(undef, length(project.rowval))
+      k = 0
+      for col in project.axes[2]
+          for i in project.nzranges[col]
+              row = project.rowval[i]
+              val = dy[row, col]
+              nzval[k += 1] = project.element(val)
+          end
+      end
+      m, n = map(length, project.axes)
+      return SparseMatrixCSC(m, n, project.colptr, project.rowval, nzval)
+   end
 
-function (project::ProjectTo{SparseMatrixCSC})(dx::AbstractArray)
-   dy = if axes(dx) == project.axes
-       dx
-   else
-       if size(dx) != (length(project.axes[1]), length(project.axes[2]))
-           throw(_projection_mismatch(project.axes, size(dx)))
-       end
-       reshape(dx, project.axes)
-   end
-   T = promote_type(ChainRulesCore.project_type(project.element), eltype(dx))
-   nzval = Vector{T}(undef, length(project.rowval))
-   k = 0
-   for col in project.axes[2]
-       for i in project.nzranges[col]
-           row = project.rowval[i]
-           val = dy[row, col]
-           nzval[k += 1] = project.element(val)
-       end
-   end
-   m, n = map(length, project.axes)
-   return SparseMatrixCSC(m, n, project.colptr, project.rowval, nzval)
+# data
+# TiAl
+# train = read_extxyz("TiAl_tutorial.xyz")
+# NiAl
+using PyCall, ASE
+asekim = pyimport("ase.calculators.kim.kim")
+eam = asekim.KIM("EAM_Dynamo_MishinMehlPapaconstantopoulos_2002_NiAl__MO_109933561507_005");
+
+eam = ASECalculator(eam)
+io = pyimport("ase.io")
+at0 = ASE.Atoms(ASE.ASEAtoms(io.read("mp-1487_AlNi.cif")))
+function gen_dat()
+   at_ = deepcopy(at0) * 2
+   rattle!(at_, 0.1)
+   set_data!(at_, "energy", energy(eam, at_))
+   set_data!(at_, "forces", forces(eam, at_))
+   set_data!(at_, "virial", virial(eam, at_))
+   return at_
 end
+# Random.seed!(0)
+train = [gen_dat() for _ = 1:10];
 
+spec = [:Ni, :Al]
+# spec = [:Ti, :Al]
 
-##
+rng = Random.MersenneTwister()
 
 rcut = 5.5 
 maxL = 0
-totdeg = 6
-ord = 3
+totdeg = 5
+ord = 2
 
 fcut(rcut::Float64,pin::Int=2,pout::Int=2) = r -> (r < rcut ? abs( (r/rcut)^pin - 1)^pout : 0)
-ftrans(r0::Float64=.0,p::Int=2) = r -> ( (1+r0)/(1+r) )^p
+ftrans(r0::Float64=2.0,p::Int=2) = r -> ( (1+r0)/(1+r) )^p
 radial = simple_radial_basis(legendre_basis(totdeg),fcut(rcut),ftrans())
+
+
 
 Aspec, AAspec = degord2spec(radial; totaldegree = totdeg, 
                               order = ord, 
                               Lmax = maxL, )
-cats = AtomicNumber.([:W, :Cu, ])
 
+
+cats = AtomicNumber.(spec)
 ipairs = collect(Combinatorics.permutations(1:length(cats), 2))
 allcats = collect(SVector{2}.(Combinatorics.permutations(cats, 2)))
 
@@ -79,11 +97,10 @@ for bb in ori_AAspec
    push!(new_AAspec, newbb)
 end
 
-luxchain, ps, st = equivariant_model(new_AAspec, radial, L; categories=allcats, islong = false)
+at = train[end]
+nlist = JuLIP.neighbourlist(at, rcut)
 
-at = rattle!(bulk(:W, cubic=true, pbc=true) * 2, 0.1)
-iCu = [3, 5, 8, 12]; 
-at.Z[iCu] .= cats[2]; 
+luxchain, ps, st = equivariant_model(new_AAspec, radial, maxL; categories=allcats, islong=false)
 nlist = JuLIP.neighbourlist(at, rcut)
 _, Rs, Zs = JuLIP.Potentials.neigsz(nlist, at, 1)
 # centere atom
@@ -97,55 +114,20 @@ Z0S = get_Z0S(z0, Zs)
 X = [Rs, Z0S]
 out, st = luxchain(X, ps, st)
 
-
-# == lux chain eval and grad
 B = out
-
-model = append_layers(luxchain, 
-         get1 =  WrappedFunction(t -> real.(t)), 
-         dot = LinearLayer(length(B), 1), 
-         get2 = WrappedFunction(t -> t[1]))
-
+model = append_layers(luxchain, get1 =  WrappedFunction(t -> real.(t)), dot = LinearLayer(length(B), 1), get2 = WrappedFunction(t -> t[1]))
 ps, st = Lux.setup(MersenneTwister(1234), model)
 
-model(X, ps, st)
-
-# testing derivative (forces)
-g = Zygote.gradient(_Rs -> model([_Rs, Z0S], ps, st)[1], Rs)[1]
-grad_model(Rs, ps, st) = 
-      Zygote.gradient(_Rs -> model([_Rs, Z0S], ps, st)[1], Rs)[1]
-
-## check derivatives  
-
-Us = randn(SVector{3, Float64}, length(g))
-F1 = t -> model([Rs + t * Us, Z0S], ps, st)[1]
-dF1 = t -> dot(Us, grad_model(Rs + t * Us, ps, st))
-fdtest(F1, dF1, 0.0)
-
-
-
-## === define toy loss ===
-
-
-p_vec, _rest = destructure(ps)
-
-function loss(Rs, p)
-   ps = _rest(p)
-   g = grad_model(Rs, ps, st)
-   return dot(g, g)
+E = 0
+let st = st, E = E
+   for i = 1:length(at)
+      _, Rs, Zs = JuLIP.Potentials.neigsz(nlist, at, i)
+      Z0S = get_Z0S(at.Z[i], Zs)
+      X = [Rs, Z0S]
+      Ei, st = model(X, ps, st)
+      E += Ei[1]
+   end
 end
-
-## === testing reverse over reverse with toy loss ===
-
-using ReverseDiff
-g1 = ReverseDiff.gradient(_p -> loss(Rs, _p), p_vec)
-
-##
-using ACEbase
-ACEbase.Testing.fdtest( 
-         _p -> loss(Rs, _p), 
-         _p -> ReverseDiff.gradient(__p -> loss(Rs, __p), _p), 
-         p_vec )
 
 
 # === actual lux potential === 
@@ -250,12 +232,16 @@ module Pot
 
 end 
 
+
 ps.dot.W[:] .= 0.01 * randn(length(ps.dot.W)) 
 calc = Pot.LuxCalc(model, ps, st, rcut)
-at = rattle!(bulk(:W, cubic=true, pbc=true) * 2, 0.1)
-iCu = [3, 5, 8, 12]; 
-at.Z[iCu] .= cats[2]; 
-E, F, V = Pot.lux_efv(at, calc, ps, st)
+JuLIP.energy(calc, at)
+Pot.lux_energy(at, calc, ps, st)
+
+@time JuLIP.energy(calc, at)
+@time Pot.lux_energy(at, calc, ps, st)
+
+using Optimisers, ReverseDiff
 
 p_vec, _rest = destructure(ps)
 
@@ -283,19 +269,68 @@ function loss(train, calc, p_vec)
       Fref = at.data["forces"].data
       Vref = at.data["virial"].data
       E, F, V = Pot.lux_efv(at, calc, ps, st)
-      err += ( (Eref-E) / Nat)^2 + sum( f -> sum(abs2, f), (Fref .- F) ) / Nat #  + 
+      err += ( (Eref-E) / Nat)^2 + sum( f -> sum(abs2, f), (Fref .- F) ) / Nat / 100  #  + 
          # sum(abs2, (Vref.-V) )
    end
    return err
 end
 
+# ACEbase.Testing.fdtest( 
+#          _p -> loss(train, calc, _p), 
+#          _p -> ReverseDiff.gradient(__p -> loss(train, calc, __p), _p), 
+#          p_vec)
 
-# generate training data
+p0 = zero.(p_vec)
+E_loss(train, calc, p0)
+ReverseDiff.gradient(p -> loss(train, calc, p), p0)
+# Zygote.gradient(p -> E_loss(train, calc, p), p_vec)[1]
 
+using Optim
+obj_f = x -> loss(train, calc, x)
+obj_g! = (g, x) -> copyto!(g, ReverseDiff.gradient(p -> loss(train, calc, p), x))
+# obj_g! = (g, x) -> copyto!(g, Zygote.gradient(p -> E_loss(train, calc, p), x)[1])
 
+res = optimize(obj_f, obj_g!, p0,
+              Optim.BFGS(),
+            #   Optimisers.AdamW(),
+              Optim.Options(g_tol = 1e-6, show_trace = true))
 
-ACEbase.Testing.fdtest( 
-         _p -> loss(train, calc, _p), 
-         _p -> ReverseDiff.gradient(__p -> loss(train, calc, __p), _p), 
-         p_vec)
+Eerrmin = Optim.minimum(res)
+RMSE = sqrt(Eerrmin / length(train))
+pargmin = Optim.minimizer(res)
+
+ace = Pot.LuxCalc(model, pargmin, st, rcut)
+Eref = []
+Eace = []
+for tr in train
+    exact = tr.data["energy"].data
+    estim = Pot.lux_energy(tr, ace, _rest(pargmin), st) 
+    push!(Eref, exact)
+    push!(Eace, estim)
+end
+
+test = [gen_dat() for _ = 1:300];
+Eref_te = []
+Eace_te = []
+for te in test
+    exact = te.data["energy"].data
+    estim = Pot.lux_energy(te, ace, _rest(pargmin), st) 
+    push!(Eref_te, exact)
+    push!(Eace_te, estim)
+end
+
+MIN = Eref_te |> minimum
+MAX = Eref_te |> maximum
+using PyPlot
+figure()
+scatter(Eref, Eace, c="red", alpha=0.4)
+scatter(Eref_te, Eace_te, c="blue", alpha=0.4)
+plot(MIN:0.01:MAX, MIN:0.01:MAX, lw=2, c="k", ls="--")
+PyPlot.legend(["Train", "Test"], fontsize=14, loc=2);
+xlabel("Reference energy")
+ylabel("ACE energy")
+axis("square")
+xlim([MIN-0.05, MAX+0.05])
+ylim([MIN-0.05, MAX+0.05])
+PyPlot.savefig("./figure/NiAl_energy_fitting.png")
 

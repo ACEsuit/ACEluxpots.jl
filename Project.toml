@@ -3,6 +3,23 @@ uuid = "2268c534-3cf0-4ad0-a97c-5c4010a21122"
 authors = ["Christoph Ortner <christophortner@gmail.com> and contributors"]
 version = "0.0.1"
 
+[deps]
+ACEbase = "14bae519-eb20-449c-a949-9c58ed33163e"
+ASE = "51974c44-a7ed-5088-b8be-3e78c8ba416c"
+ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
+Combinatorics = "861a8166-3701-5b0c-9a16-15d98fcdc6aa"
+EquivariantModels = "73ee3e68-46fd-466f-9c56-451dc0291ebc"
+JuLIP = "945c410c-986d-556a-acb1-167a618e0462"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Lux = "b2108857-7c20-44ae-9111-449ecde12c47"
+Optimisers = "3bd65402-5787-11e9-1adc-39752487f4e2"
+Polynomials4ML = "03c4bcba-a943-47e9-bfa1-b1661fc2974f"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+ReverseDiff = "37e2e3b7-166d-5795-8a7a-e32c996b4267"
+SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
+
 [compat]
 julia = "1"
 
