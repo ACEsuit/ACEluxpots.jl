@@ -69,8 +69,6 @@ fcut(rcut::Float64,pin::Int=2,pout::Int=2) = r -> (r < rcut ? abs( (r/rcut)^pin 
 ftrans(r0::Float64=2.0,p::Int=2) = r -> ( (1+r0)/(1+r) )^p
 radial = simple_radial_basis(legendre_basis(totdeg),fcut(rcut),ftrans())
 
-
-
 Aspec, AAspec = degord2spec(radial; totaldegree = totdeg, 
                               order = ord, 
                               Lmax = maxL, )

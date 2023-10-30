@@ -1,13 +1,18 @@
 
 using EquivariantModels, Lux, StaticArrays, Random, LinearAlgebra, Zygote 
-using Polynomials4ML: LinearLayer, RYlmBasis, lux 
-using EquivariantModels: degord2spec, specnlm2spec1p, xx2AA
+using Polynomials4ML: LinearLayer, RYlmBasis, lux, legendre_basis 
+using EquivariantModels: degord2spec, specnlm2spec1p, xx2AA, simple_radial_basis
 rng = Random.MersenneTwister()
+using ASE, JuLIP, Optim, PyPlot
+using Optimisers, ReverseDiff
+using LineSearches: BackTracking
+using LineSearches
+
+using ACEluxpots: Pot
 
 # dataset
-using ASE, JuLIP
 function gen_dat()
-   eam = JuLIP.Potentials.EAM("w_eam4.fs")
+   eam = JuLIP.Potentials.EAM("./potentials/w_eam4.fs")
    at = rattle!(bulk(:W, cubic=true) * 2, 0.1)
    set_data!(at, "energy", energy(eam, at))
    return at
@@ -17,13 +22,20 @@ train = [gen_dat() for _ = 1:100];
 
 rcut = 5.5 
 maxL = 0
-Aspec, AAspec = degord2spec(; totaldegree = 6, 
-                              order = 3, 
+totdeg = 5
+ord = 2
+
+fcut(rcut::Float64,pin::Int=2,pout::Int=2) = r -> (r < rcut ? abs( (r/rcut)^pin - 1)^pout : 0)
+ftrans(r0::Float64=2.0,p::Int=2) = r -> ( (1+r0)/(1+r) )^p
+radial = simple_radial_basis(legendre_basis(totdeg),fcut(rcut),ftrans())
+
+Aspec, AAspec = degord2spec(radial; totaldegree = totdeg, 
+                              order = ord, 
                               Lmax = maxL, )
 
-l_basis, ps_basis, st_basis = equivariant_model(AAspec, maxL)
+l_basis, ps_basis, st_basis = equivariant_model(AAspec, radial, maxL; islong = false)
 X = [ @SVector(randn(3)) for i in 1:10 ]
-B = l_basis(X, ps_basis, st_basis)[1][1]
+B = l_basis(X, ps_basis, st_basis)[1]
 
 # now build another model with a better transform 
 L = maximum(b.l for b in Aspec) 
@@ -34,23 +46,18 @@ embed = Parallel(nothing;
                    poly = l_basis.layers.embed.layers.Rn, ), 
       Ylm = Chain(Ylm = lux(RYlmBasis(L)),  ) )
 
-model = Chain( 
-         embed = embed, 
-         A = l_basis.layers.A, 
-         AA = l_basis.layers.AA, 
-         # AA_sort = l_basis.layers.AA_sort, 
-         BB = l_basis.layers.BB, 
-         get1 = WrappedFunction(t -> t[1]), 
-         dot = LinearLayer(len_BB, 1), 
-         get2 = WrappedFunction(t -> t[1]), )
+len_BB = length(B) 
+
+model = append_layer(l_basis, WrappedFunction(t -> real(t)); l_name=:real)
+model = append_layer(model, LinearLayer(len_BB, 1); l_name=:dot)
+model = append_layer(model, WrappedFunction(t -> t[1]); l_name=:get1)
+         
 ps, st = Lux.setup(rng, model)
 out, st = model(X, ps, st)
 
 
 ps.dot.W[:] .= 0.01 * randn(length(ps.dot.W)) 
 calc = Pot.LuxCalc(model, ps, st, rcut)
-
-using Optimisers, ReverseDiff
 
 p_vec, _rest = destructure(ps)
 
@@ -73,13 +80,10 @@ E_loss(train, calc, p0)
 ReverseDiff.gradient(p -> E_loss(train, calc, p), p0)
 Zygote.gradient(p -> E_loss(train, calc, p), p_vec)[1]
 
-using Optim
 obj_f = x -> E_loss(train, calc, x)
 # obj_g! = (g, x) -> copyto!(g, ReverseDiff.gradient(p -> E_loss(train, calc, p), x))
 obj_g! = (g, x) -> copyto!(g, Zygote.gradient(p -> E_loss(train, calc, p), x)[1])
 
-using LineSearches: BackTracking
-using LineSearches
 # solver = Optim.ConjugateGradient(linesearch = BackTracking(order=2, maxstep=Inf))
 # solver = Optim.GradientDescent(linesearch = BackTracking(order=2, maxstep=Inf) )
 solver = Optim.BFGS()
@@ -112,7 +116,6 @@ for te in test
     push!(Eace_te, estim)
 end
 
-using PyPlot
 figure()
 scatter(Eref, Eace, c="red", alpha=0.4)
 scatter(Eref_te, Eace_te, c="blue", alpha=0.4)

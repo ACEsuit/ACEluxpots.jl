@@ -3,9 +3,9 @@ using Polynomials4ML: LinearLayer, RYlmBasis, lux, legendre_basis
 using EquivariantModels: degord2spec, specnlm2spec1p, xx2AA, simple_radial_basis
 rng = Random.MersenneTwister()
 using Optimisers, ReverseDiff
+using ASE, JuLIP
 
 # dataset
-using ASE, JuLIP
 function gen_dat()
    eam = JuLIP.Potentials.EAM("./potential/w_eam4.fs")
    at = rattle!(bulk(:W, cubic=true) * 2, 0.1)
