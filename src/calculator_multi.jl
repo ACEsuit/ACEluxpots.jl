@@ -1,7 +1,5 @@
 
 
-# === actual lux potential === 
-
 module Pot 
    import JuLIP, Zygote, StaticArrays
    import JuLIP: cutoff, Atoms 
@@ -46,7 +44,6 @@ module Pot
 
    # ----- parameter estimation stuff 
 
-   
    function lux_energy(at::Atoms, calc::LuxCalc, ps::NamedTuple, st::NamedTuple)
       nlist = ignore_derivatives() do 
          JuLIP.neighbourlist(at, calc.rcut)
@@ -62,7 +59,6 @@ module Pot
          1:length(at)
          )
    end
-
 
    function lux_efv(at::Atoms, calc::LuxCalc, ps::NamedTuple, st::NamedTuple)
       nlist = ignore_derivatives() do 

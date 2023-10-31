@@ -1,6 +1,6 @@
 
 
-module Pot 
+module Pot_single 
    import JuLIP, Zygote, StaticArrays
    import JuLIP: cutoff, Atoms 
    import ACEbase: evaluate!, evaluate_d!
