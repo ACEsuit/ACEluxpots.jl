@@ -8,8 +8,6 @@ using Printf
 
 L = 0
 
-include("staticprod.jl")
-
 function grad_test2(f, df, X::AbstractVector; verbose = true)
    F = f(X) 
    ∇F = df(X)

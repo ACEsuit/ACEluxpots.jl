@@ -61,16 +61,18 @@ module Pot_single
       nlist = ignore_derivatives() do 
          JuLIP.neighbourlist(at, calc.rcut)
       end
+      T = promote_type(eltype(at.X[1]), eltype(ps.dot.W))
       E = 0.0 
-      F = zeros(SVector{3, Float64}, length(at))
-      V = zero(SMatrix{3, 3, Float64}) 
+      F = zeros(SVector{3, T}, length(at))
+      V = zero(SMatrix{3, 3, T}) 
       for i = 1:length(at) 
          Js, Rs, Zs = ignore_derivatives() do 
             JuLIP.Potentials.neigsz(nlist, at, i)
          end
          comp = Zygote.withgradient(_X -> calc.luxmodel(_X, ps, st)[1], Rs)
          Ei = comp.val 
-         ∇Ei = comp.grad[1] 
+         _∇Ei = comp.grad[1] 
+         ∇Ei = _∇Ei
          # energy 
          E += Ei 
 

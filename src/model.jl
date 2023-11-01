@@ -42,26 +42,3 @@ function construct_models(spec; ord::Int64=2, totdeg::Int64=5, rcut::Float64=5.5
 
     return model
 end
-
-
-
-
-
-
-
-
-
-
-
-
-# at = train[end]
-# nlist = JuLIP.neighbourlist(at, rcut)
-# _, Rs, Zs = JuLIP.Potentials.neigsz(nlist, at, 1)
-# z0  = at.Z[1]
-# get_Z0S(zz0, ZZS) = [SVector{2}(zz0, zzs) for zzs in ZZS]
-# Z0S = get_Z0S(z0, Zs)
-# X = [Rs, Z0S]
-# out, st = luxchain(X, ps, st)
-
-# ps, st = Lux.setup(MersenneTwister(1234), model)
-
