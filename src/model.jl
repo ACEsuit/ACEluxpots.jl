@@ -1,5 +1,9 @@
 
+
 export construct_models
+
+using EquivariantModels: degord2spec, specnlm2spec1p, xx2AA, simple_radial_basis
+using EquivariantModels, Lux, JuLIP, Combinatorics, StaticArrays
 
 fcut(rcut::Float64, pin::Int=2, pout::Int=2) = r -> (r < rcut ? abs( (r/rcut)^pin - 1)^pout : 0)
 ftrans(r0::Float64=2.0, p::Int=2) = r -> ( (1+r0)/(1+r) )^p

@@ -1,3 +1,5 @@
+
+# can be shorten
 using EquivariantModels, Lux, StaticArrays, Random, LinearAlgebra, Zygote 
 using Polynomials4ML: LinearLayer, RYlmBasis, lux, legendre_basis 
 using EquivariantModels: degord2spec, specnlm2spec1p, xx2AA, simple_radial_basis
@@ -5,6 +7,7 @@ using JuLIP, Combinatorics, ACEbase
 using Optimisers, ReverseDiff, Optim
 
 using ACEluxpots: Pot
+using ACEluxpots
 
 train = read_extxyz("../examples/data/NiAl_data.xyz")
 spec = [:Ni, :Al]

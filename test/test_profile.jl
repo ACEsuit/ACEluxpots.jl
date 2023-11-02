@@ -7,6 +7,7 @@ using Optimisers, ReverseDiff
 using ASE, JuLIP
 
 using ACEluxpots: Pot_single 
+using ACEluxpots
 using ProfileView, BenchmarkTools
 
 rcut = 5.5 
