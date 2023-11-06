@@ -1,12 +1,16 @@
-using EquivariantModels, Lux, StaticArrays, Random, LinearAlgebra, Zygote, Polynomials4ML
-using Polynomials4ML: LinearLayer, RYlmBasis, lux 
-using EquivariantModels: degord2spec, specnlm2spec1p, xx2AA, simple_radial_basis
-using JuLIP, Combinatorics, Test
-using ACEbase.Testing: println_slim, print_tf, fdtest
+using Polynomials4ML: lux, legendre_basis
+using EquivariantModels: simple_radial_basis
 using Optimisers: destructure
-using Printf
+using ACEluxpots: _toState
+using ACEbase.Testing: println_slim, print_tf, fdtest
 
-using ACEluxpots
+using ACEluxpots, EquivariantModels, Lux, StaticArrays, LinearAlgebra, Zygote, Polynomials4ML
+
+using JuLIP, Combinatorics
+using Test, Printf, Random
+
+
+rng = Random.MersenneTwister()
 
 function grad_test2(f, df, X::AbstractVector; verbose = true)
    F = f(X) 
@@ -23,46 +27,48 @@ function grad_test2(f, df, X::AbstractVector; verbose = true)
    end
 end
 
-rng = Random.MersenneTwister()
+## 
 
+# === test configs ===
 rcut = 5.5 
-spec = [:W, :Cu, :Ni, :Fe, :Al]
+species = [:W, :Cu, :Ni, :Fe, :Al]
+totdeg = 8
+radial = simple_radial_basis(legendre_basis(totdeg))
+model = construct_model(species, radial)
 
-model = construct_models(spec)
 ps, st = Lux.setup(rng, model)
 p_vec, _rest = destructure(ps)
 
+# set up toy JuLIP.Atoms
 at = rattle!(bulk(:W, cubic=true, pbc=true) * 2, 0.1)
 iCu = [5, 12]; iNi = [3, 8]; iAl = [10]; iFe = [6];
 cats = AtomicNumber.([:W, :Cu, :Ni, :Fe, :Al])
 at.Z[iCu] .= cats[2]; at.Z[iNi] .= cats[3]; at.Z[iAl] .= cats[4]; at.Z[iFe] .= cats[5];
 nlist = JuLIP.neighbourlist(at, rcut)
 _, Rs, Zs = JuLIP.Potentials.neigsz(nlist, at, 1)
-# centere atom
-z0  = at.Z[1]
-# serialization, I want the input data structure to lux as simple as possible
-get_Z0S(zz0, ZZS) = [SVector{2}(zz0, zzs) for zzs in ZZS]
-Z0S = get_Z0S(z0, Zs)
-# input of luxmodel
-X = [Rs, Z0S]
 
+# get first atom as center atom
+z0  = at.Z[1]
+X = _toState(Rs, Zs, z0)
 model(X, ps, st)
 
-# testing derivative (forces)
-g = Zygote.gradient(X -> model(X, ps, st)[1], X)[1]
-grad_model(X, ps, st) = Zygote.gradient(_X -> model(_X, ps, st)[1], X)[1]
-
-F(Rs) = model([Rs, Z0S], ps, st)[1]
-dF(Rs) = Zygote.gradient(rs -> model([rs, Z0S], ps, st)[1], Rs)[1]
+##
 
 @info("test derivative w.r.t X")
-print_tf(@test fdtest(F, dF, Rs; verbose=true))
+g = Zygote.gradient(X -> model(_toState(X, Zs, z0), ps, st)[1], Rs)[1]
+
+F(Rs) = model(_toState(Rs, Zs, z0), ps, st)[1]
+dF(Rs) = Zygote.gradient(X -> model(_toState(X, Zs, z0), ps, st)[1], Rs)[1]
+
+fdtest(F, dF, Rs)
+
+##
 
 @info("test derivative w.r.t parameter")
 p = Zygote.gradient(p -> model(X, p, st)[1], ps)[1]
 p, = destructure(p)
-
 W0, re = destructure(ps)
+
 Fp = w -> model(X, re(w), st)[1]
 dFp = w -> ( gl = Zygote.gradient(p -> model(X, p, st)[1], ps)[1]; destructure(gl)[1])
 grad_test2(Fp, dFp, W0)

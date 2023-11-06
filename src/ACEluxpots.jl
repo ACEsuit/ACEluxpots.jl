@@ -5,11 +5,10 @@ module ACEluxpots
 include("staticprod.jl")
 
 # will merge these two into one file
-include("calculator_single.jl")
-include("calculator_multi.jl")
+include("calculator.jl")
 
 # useful tools
-include("utils.jl")
+# include("utils.jl")
 
 include("model.jl")
 

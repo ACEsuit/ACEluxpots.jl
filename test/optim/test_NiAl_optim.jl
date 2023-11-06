@@ -18,7 +18,7 @@ maxL = 0
 totdeg = 5
 ord = 2
 
-model = construct_models(spec)
+model = construct_model(spec)
 
 ps, st = Lux.setup(MersenneTwister(1234), model)
 p_vec, _rest = destructure(ps)

@@ -1,23 +1,19 @@
+export construct_model
+
+using EquivariantModels: degord2spec, equivariant_model, append_layers
+using Polynomials4ML: legendre_basis, LinearLayer
+using Lux: WrappedFunction
+
+using Combinatorics
 
 
-export construct_models
+function construct_model(species, radial; ord::Int64=2, totdeg::Int64=5, rcut::Float64=5.5, maxL::Int64=0)
 
-using EquivariantModels: degord2spec, specnlm2spec1p, xx2AA, simple_radial_basis
-using EquivariantModels, Lux, JuLIP, Combinatorics, StaticArrays
-
-fcut(rcut::Float64, pin::Int=2, pout::Int=2) = r -> (r < rcut ? abs( (r/rcut)^pin - 1)^pout : 0)
-ftrans(r0::Float64=2.0, p::Int=2) = r -> ( (1+r0)/(1+r) )^p
-construct_radial(totdeg::Int64, rcut::Float64) = simple_radial_basis(legendre_basis(totdeg), fcut(rcut), ftrans())
-
-
-function construct_models(spec; ord::Int64=2, totdeg::Int64=5, rcut::Float64=5.5, maxL::Int64=0)
-
-    radial = construct_radial(totdeg, rcut)
     _, AAspec = degord2spec(radial; totaldegree = totdeg, order = ord, Lmax = maxL)
 
     # deal with the categories (will be improved later!)
-    if length(spec) != 1
-        cats = AtomicNumber.(spec)
+    if length(species) != 1
+        cats = AtomicNumber.(species)
         ipairs = collect(Combinatorics.permutations(1:length(cats), 2))
         allcats = collect(SVector{2}.(Combinatorics.permutations(cats, 2)))
         for (i, cat) in enumerate(cats) 

@@ -28,7 +28,7 @@ maxL = 0
 totdeg = 8
 ord = 2
 
-model = construct_models([:W])
+model = construct_model([:W])
 ps, st = Lux.setup(rng, model)
 calc = Pot_single.LuxCalc(model, ps, st, rcut)
 p_vec, _rest = destructure(ps)
