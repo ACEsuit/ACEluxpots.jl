@@ -4,10 +4,20 @@ using EquivariantModels: degord2spec, equivariant_model, append_layers
 using Polynomials4ML: legendre_basis, LinearLayer
 using Lux: WrappedFunction
 
+
 using Combinatorics
 
-
-function construct_model(species, radial; ord::Int64=2, totdeg::Int64=5, rcut::Float64=5.5, maxL::Int64=0)
+"""
+construct_model(species, radial; ord::Int64=2, totdeg::Int64=5, rcut::Float64=5.5, maxL::Int64=0)
+Construct a conventational ACE lux potential with categorial (onehot) basis
+species: all species of the model
+radial: radial basis of the model, can be a lux chain which can be passed to EQM.degord2spec
+maxL: maximum level of L included in the model
+ord: order of the n-correlation layer, default to 2
+totdeg: totaldegree of the model, default to 12
+rcut: rcut of the model, default to 5.5
+"""
+function construct_model(species, radial, maxL; ord::Int64=2, totdeg::Int64=12, rcut::Float64=5.5)
 
     _, AAspec = degord2spec(radial; totaldegree = totdeg, order = ord, Lmax = maxL)
 

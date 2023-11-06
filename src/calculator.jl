@@ -8,21 +8,38 @@ using JuLIP, Zygote, StaticArrays
 import JuLIP: cutoff
 import ACEbase: evaluate!, evaluate_d!
 
-
+"""
+LuxCalc <: JuLIP.SitePotential
+Calculator for Lux Potentials
+luxmode: Lux model, usually a Lux.Chain
+ps: parameter of luxmodel
+st: st of luxmodel
+rcut: cutoff radius for JuLIP neighbourlist
+restructure: a function to reconstruct ps, from Optimisers
+"""
 struct LuxCalc <: JuLIP.SitePotential 
    luxmodel
-   ps
-   st 
+   ps::NamedTuple
+   st::NamedTuple
    rcut::Float64
    restructure
 end
 
+# === constructor ===
 function LuxCalc(luxmodel, ps, st, rcut) 
    pvec, rest = destructure(ps)
    return LuxCalc(luxmodel, ps, st, rcut, rest)
 end
 
+##
+
 # === utils ===
+cutoff(calc::LuxCalc) = calc.rcut
+
+"""
+_toState(Rs, Zs, z0)
+Convert Rs and Zs from JuLIP neighbourlist to `State`, z0 is the center atom
+"""
 _toState(Rs, Zs, z0) = [State(rr = ri, Zi = z0, Zj = zj) for (ri, zj) in zip(Rs, Zs)]
 
 import ChainRulesCore: rrule
@@ -30,11 +47,9 @@ function rrule(::typeof(_toState), Rs, Zs, z0)
    return [State(rr = ri, Zi = z0, Zj = zj) for (ri, zj) in zip(Rs, Zs)], ∂ -> (NoTangent(), [SVector(∂i.x.rr...) for ∂i in ∂], NoTangent(), NoTangent())
 end
 
-cutoff(calc::LuxCalc) = calc.rcut
-
 ##
 
-# === evaluation with JuLIP ===
+# === evaluation interface with JuLIP ===
 function evaluate!(tmp, calc::LuxCalc, Rs, Zs, z0)
    E, st = calc.luxmodel(_toState(Rs, Zs, z0), calc.ps, calc.st)
    return E[1]
@@ -50,7 +65,6 @@ end
 ##
 
 # === parameter estimation stuff  ===
-
 function lux_energy(at::Atoms, calc::LuxCalc, ps::NamedTuple, st::NamedTuple)
    nlist = ignore_derivatives() do 
       JuLIP.neighbourlist(at, calc.rcut)

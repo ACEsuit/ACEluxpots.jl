@@ -4,12 +4,11 @@ module ACEluxpots
 
 include("staticprod.jl")
 
-# will merge these two into one file
+# Lux potential calculator
 include("calculator.jl")
 
-# useful tools
-# include("utils.jl")
-
+# model constructors
 include("model.jl")
+
 
 end
