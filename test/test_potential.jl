@@ -34,7 +34,7 @@ rcut = 5.5
 species = [:W, :Cu, :Ni, :Fe, :Al]
 totdeg = 8
 radial = simple_radial_basis(legendre_basis(totdeg))
-model = construct_model(species, radial)
+model = construct_model(species, radial, 0)
 
 ps, st = Lux.setup(rng, model)
 p_vec, _rest = destructure(ps)

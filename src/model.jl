@@ -17,8 +17,9 @@ ord: order of the n-correlation layer, default to 2
 totdeg: totaldegree of the model, default to 12
 rcut: rcut of the model, default to 5.5
 """
-function construct_model(species, radial, maxL; ord::Int64=2, totdeg::Int64=12, rcut::Float64=5.5)
+function construct_model(species, radial; ord::Int64=2, totdeg::Int64=12, rcut::Float64=5.5)
 
+    maxL = 0
     _, AAspec = degord2spec(radial; totaldegree = totdeg, order = ord, Lmax = maxL)
 
     # deal with the categories (will be improved later!)
